@@ -1,6 +1,17 @@
+<div align="center">
+
 # HTML Studio
 
 **Read, view and visually edit HTML files right inside Obsidian.**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-4C1.svg)](./LICENSE)
+[![Made for Obsidian](https://img.shields.io/badge/Made%20for-Obsidian-7C3AED.svg)](https://obsidian.md)
+[![GitHub release](https://img.shields.io/github/v/release/pherehouse/obsidian-html-studio?color=blue)](../../releases)
+
+[![English](https://img.shields.io/badge/README-English-2b5797?style=flat-square)](./README.md)
+[![简体中文](https://img.shields.io/badge/README-简体中文-c74634?style=flat-square)](./README.zh-CN.md)
+
+</div>
 
 HTML Studio is an Obsidian plugin that turns your vault into a workspace for HTML files — from slide decks to long-form reports. Open any `.html` / `.htm` file, browse it in a sandboxed viewer, **click-to-edit its content**, and save changes back — no external editor needed.
 

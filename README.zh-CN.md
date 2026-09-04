@@ -1,12 +1,17 @@
 <div align="center">
 
-**简体中文** | [English](./README.md)
-
-</div>
-
 # HTML Studio
 
 **在 Obsidian 中直接阅读、查看和可视化编辑 HTML 文件。**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-4C1.svg)](./LICENSE)
+[![Made for Obsidian](https://img.shields.io/badge/Made%20for-Obsidian-7C3AED.svg)](https://obsidian.md)
+[![GitHub release](https://img.shields.io/github/v/release/pherehouse/obsidian-html-studio?color=blue)](../../releases)
+
+[![English](https://img.shields.io/badge/README-English-2b5797?style=flat-square)](./README.md)
+[![简体中文](https://img.shields.io/badge/README-简体中文-c74634?style=flat-square)](./README.zh-CN.md)
+
+</div>
 
 HTML Studio 是一个 Obsidian 插件，把你的仓库变成 HTML 文件的工作台——从幻灯片到长篇报告。打开任意 `.html` / `.htm` 文件，在沙箱查看器中浏览，**点击即可编辑内容**，然后保存回去——无需外部编辑器。
 
