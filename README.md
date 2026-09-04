@@ -65,18 +65,3 @@ Add this repo to [BRAT](https://github.com/TfTHacker/obsidian42-brat) and it wil
 - Thanks to the Obsidian community for feedback and ideas.
 
 Licensed under the [MIT License](LICENSE), honoring the upstream license.
-
----
-
-## 中文说明
-
-**HTML Studio** 在 Obsidian 中打开 `.html` / `.htm` 文件，不仅可查看，还可以**直接可视化编辑并保存**：
-
-- 点击任意文字直接修改（标题、段落、表格、以及 div/span 内的文字均可）
-- 点击图片即可替换（以 Data URL 内嵌，离线可用）
-- 自动识别幻灯片结构（JMC 书页式、reveal.js 等）与纵向长页：前者翻页编辑，后者保持滚动
-- 保存采用「母版合并」策略：重新读取磁盘原文件，仅替换编辑过的部分，脚本与样式不受预览模式影响
-- 外链默认拦截防误触（⌘/Ctrl + 点击手动打开），可在页面菜单随时开关
-- 一键「在默认浏览器中打开」
-
-本项目基于 [nuthrash/obsidian-html-plugin](https://github.com/nuthrash/obsidian-html-plugin)（MIT 协议）修改扩展，感谢原作者的工作。遵循 MIT 协议开源。
