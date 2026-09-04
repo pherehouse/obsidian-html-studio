@@ -25,22 +25,27 @@ Obsidian users keep lots of HTML artifacts: presentation decks, project briefs, 
 
 ## Features
 
-### ✨ Visual Editing (new in this fork)
+### 📖 Read & Browse
+
+Open `.html` / `.htm` / `.mhtml` files directly in Obsidian — rendered, not as raw source.
+
+- **Sandboxed rendering** — files are displayed in a secure iframe, with 5 security levels to choose from (Balance / Low Restricted / Unrestricted / High Restricted / Text-only).
+- **Works with any structure** — slide decks (reveal.js, JMC-style paged HTML…) and vertically scrolling long pages (reports, briefs, dashboards) are both detected and rendered appropriately.
+- **Zoom in / out / reset**, custom background color, and **in-page search**.
+- **MHTML support** — open `.mht` / `.mhtml` web archives saved from the browser.
+- **Open in default browser** — one menu action to hand the file over to your system browser for a full-fidelity look.
+- **Bug fix over upstream:** `position: fixed` elements stay pinned correctly (upstream broke them by always applying `transform: scale(1)`).
+
+### ✏️ Visual Editing (new in this fork)
 
 - **Click-to-edit text** — every text block in the file is editable in place: headings, paragraphs, list items, table cells, and text inside `div`/`span` elements. A text-node walker marks all editable regions automatically, regardless of the page's tag conventions.
 - **Replace images** — click any image and pick a local file; it is embedded as a Data URL, so the saved file stays fully self-contained and works offline.
-- **Smart slide detection** — the plugin recognizes paged documents (`.deck .slide`, reveal.js, `section.slide`, etc. via 7 selector strategies) *and* distinguishes them from vertically scrolling long pages using a real-pagination heuristic (`display:none` toggling or absolute stacking ⇒ paged; normal document flow ⇒ scrollable). Decks get a floating page bar + `← →` keyboard navigation; long pages keep their native scroll.
+- **Slide-aware page navigation while editing** — decks get a floating page bar + `← →` keyboard navigation (7 selector strategies for detection, plus a real-pagination heuristic so scrolling long pages are never mistaken for slides and keep their native scroll).
 - **Safe save (master-merge)** — on save, the file is re-read from disk as a master copy and only the edited sections are replaced back. Scripts, styles and everything untouched by the edit survive exactly as they were — even if the preview mode had stripped them.
-- **Per-page link interception** — external links don't navigate on a plain click (which also prevents accidental tracking/analytics triggers). Use `⌘/Ctrl + click` to open deliberately, or toggle interception off in the page menu.
-- **Open in default browser** — one menu action to hand the file over to your system browser for a full-fidelity look.
 
-### 🛡 Robust viewing (inherited & fixed from upstream)
+### 🛡 Safe Link Handling (new in this fork)
 
-- Multiple rendering modes with different security levels (Balance / Low Restricted / Unrestricted / High Restricted / Text-only).
-- Zoom in/out/reset, background color, in-page search.
-- MHTML (`.mht` / `.mhtml`) support.
-- Anchors, `target=_blank` and link handling tuned for Obsidian.
-- **Bug fix:** `position: fixed` elements no longer break (upstream applied `transform: scale(1)` even at 100% zoom, which created a containing block and broke fixed positioning).
+- External links don't navigate on a plain click — which also prevents accidental tracking/analytics triggers. Use `⌘/Ctrl + click` to open deliberately, or toggle interception on/off in the page menu.
 
 ## Usage
 
