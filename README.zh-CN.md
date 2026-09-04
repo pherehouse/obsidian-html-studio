@@ -59,6 +59,19 @@ Obsidian 用户往往保存了大量 HTML 产物：演示文稿、项目简报�
 
 ## 安装
 
+### AI 安装（最快）
+
+把下面这段话直接发给你的 AI 助手（Claude Code、Cursor、Copilot、Trae 等），让它替你装好：
+
+```text
+帮我安装 Obsidian 插件 "HTML Studio"：
+1. 从 https://github.com/pherehouse/obsidian-html-studio/releases/latest 下载 main.js 和 manifest.json
+2. 放到 <我的仓库>/.obsidian/plugins/html-studio/ 目录下
+3. 告诉我如何在 Obsidian 设置里启用它
+```
+
+AI 会读懂这个 README，拉取 release 文件、放进正确的目录——几秒搞定，无需手动下载。
+
 ### 从 GitHub 手动安装
 
 1. 从 [最新 release](../../releases) 下载 `main.js`、`manifest.json`。

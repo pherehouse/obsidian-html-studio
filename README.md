@@ -59,6 +59,19 @@ Open `.html` / `.htm` / `.mhtml` files directly in Obsidian — rendered, not as
 
 ## Install
 
+### Install with AI (fastest)
+
+Ask your AI assistant (Claude Code, Cursor, Copilot, Trae, etc.) to install it for you — just paste this:
+
+```text
+Install the Obsidian plugin "HTML Studio" for me:
+1. Download main.js and manifest.json from https://github.com/pherehouse/obsidian-html-studio/releases/latest
+2. Put them into <my-vault>/.obsidian/plugins/html-studio/
+3. Tell me how to enable it in Obsidian settings.
+```
+
+The AI reads this README, fetches the release files, drops them in the right folder — done in seconds, no manual download needed.
+
 ### From GitHub (manual)
 
 1. Download `main.js`, `manifest.json` from the [latest release](../../releases).
