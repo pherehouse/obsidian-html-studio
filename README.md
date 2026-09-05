@@ -41,6 +41,7 @@ Open `.html` / `.htm` / `.mhtml` files directly in Obsidian — rendered, not as
 - **Click-to-edit text** — every text block in the file is editable in place: headings, paragraphs, list items, table cells, and text inside `div`/`span` elements. A text-node walker marks all editable regions automatically, regardless of the page's tag conventions.
 - **Replace images** — click any image and pick a local file; it is embedded as a Data URL, so the saved file stays fully self-contained and works offline.
 - **Slide-aware page navigation while editing** — decks get a floating page bar + `← →` keyboard navigation (7 selector strategies for detection, plus a real-pagination heuristic so scrolling long pages are never mistaken for slides and keep their native scroll).
+- **Edit dynamic TOC navigation** (v2.0.1) — JS-generated floating TOCs (built at runtime from each slide's `data-title`) are editable too: click the nav text, and on save it's written back to the corresponding slide. Runtime-generated UI is never written into your file.
 - **Safe save (master-merge)** — on save, the file is re-read from disk as a master copy and only the edited sections are replaced back. Scripts, styles and everything untouched by the edit survive exactly as they were — even if the preview mode had stripped them.
 
 ### 🛡 Safe Link Handling (new in this fork)
