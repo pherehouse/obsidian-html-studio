@@ -23137,7 +23137,7 @@ var HtmlView = class extends import_obsidian2.FileView {
       const startIdx = this.__ohpEdSlides.findIndex((s) => s.classList.contains("is-active") || s.classList.contains("present") || s.classList.contains("current") || s.classList.contains("active"));
       this.ohpEdShow(startIdx >= 0 ? startIdx : 0);
     }
-    const SKIP_TAG = /* @__PURE__ */ new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEMPLATE", "IMG", "BR", "HR", "IFRAME", "CANVAS", "VIDEO", "AUDIO", "INPUT", "TEXTAREA", "SELECT", "OPTION", "BUTTON", "SVG", "PATH", "CIRCLE", "RECT", "ELLIPSE", "LINE", "POLYGON", "POLYLINE", "G", "TEXT", "TSPAN"]);
+    const SKIP_TAG = /* @__PURE__ */ new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEMPLATE", "IMG", "BR", "HR", "IFRAME", "CANVAS", "VIDEO", "AUDIO", "INPUT", "TEXTAREA", "SELECT", "OPTION", "SVG", "PATH", "CIRCLE", "RECT", "ELLIPSE", "LINE", "POLYGON", "POLYLINE", "G", "TEXT", "TSPAN"]);
     const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
     while (walker.nextNode()) {
       const node = walker.currentNode;
@@ -23149,6 +23149,9 @@ var HtmlView = class extends import_obsidian2.FileView {
       if (SKIP_TAG.has(el.tagName.toUpperCase()))
         continue;
       if (el.closest("#__ohpEdBar"))
+        continue;
+      /* 跳过动态生成的目录导航（.toc），它不在原始文件里，母版合并无法写回 */
+      if (el.closest(".toc"))
         continue;
       if (el.closest("[contenteditable]"))
         continue;
@@ -23165,6 +23168,26 @@ var HtmlView = class extends import_obsidian2.FileView {
         e.stopPropagation();
         this.ohpEdReplaceImage(img);
       });
+    });
+    /* 顶部悬浮目录（.toc）：由 JS 从各 slide 的 data-title 动态生成。
+     * 让目录按钮文字可编辑（保存时写回对应 slide 的 data-title）；
+     * 编辑期间拦截点击，防止触发翻页。 */
+    doc.querySelectorAll(".toc .toc-item").forEach((btn) => {
+      const idx = parseInt(btn.getAttribute("data-toc-idx") || "", 10);
+      if (!(idx >= 0))
+        return;
+      btn.setAttribute("contenteditable", "true");
+      btn.setAttribute("spellcheck", "false");
+      btn.setAttribute("data-ohp-toc-idx", String(idx));
+      btn.addEventListener("input", () => {
+        this.__ohpEdDirty = true;
+      });
+      btn.addEventListener("click", (e) => {
+        if (this.__ohpEdEditing) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }, true);
     });
     this.__ohpEdEditing = true;
     new import_obsidian2.Notice("编辑模式已开启：← → 切换页面，点击文字修改，点击图片替换；完成后在菜单中选择「保存修改」");
@@ -23220,6 +23243,8 @@ var HtmlView = class extends import_obsidian2.FileView {
       el.removeAttribute("spellcheck");
     });
     node.querySelectorAll("[data-ohp-ed]").forEach((el) => el.removeAttribute("data-ohp-ed"));
+    /* 移除运行时 JS 动态生成的 UI（悬浮目录、圆点导航等），整页保存时避免写回文件 */
+    node.querySelectorAll(".toc, .dot-nav, .progress-bar, .notes-overlay, .overview").forEach((el) => el.remove());
   }
   async saveEdits() {
     const iframe = this.ohpEdGetIframe();
@@ -23238,9 +23263,23 @@ var HtmlView = class extends import_obsidian2.FileView {
       const iDet = this.ohpEdDetectSlides(doc.body);
       const mDet = this.ohpEdDetectSlides(master.body);
       if (iDet && mDet && iDet.list.length === mDet.list.length) {
+        /* 收集编辑后的目录文字（去掉序号 span），保存时写回对应 slide 的 data-title */
+        const tocTexts = {};
+        doc.querySelectorAll("[data-ohp-toc-idx]").forEach((btn) => {
+          const idx = parseInt(btn.getAttribute("data-ohp-toc-idx"), 10);
+          if (!(idx >= 0))
+            return;
+          const c = btn.cloneNode(true);
+          c.querySelectorAll(".toc-number").forEach((n) => n.remove());
+          const txt = (c.textContent || "").trim();
+          if (txt)
+            tocTexts[idx] = txt;
+        });
         iDet.list.forEach((iSlide, i) => {
           const c = iSlide.cloneNode(true);
           this.ohpEdClean(c);
+          if (tocTexts[i] != null)
+            c.setAttribute("data-title", tocTexts[i]);
           mDet.list[i].replaceWith(c);
         });
       } else {
