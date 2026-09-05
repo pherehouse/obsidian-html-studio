@@ -21,17 +21,29 @@ export class HtmlView extends FileView {
 	private watcherRegistered: boolean = false;
 	private pendingScrollY: number = 0;
 
+	// fork: current file reference + visual-editing state
+	private currentFile: TFile | null = null;
+	private __ohpEdEditing: boolean = false;
+	private __ohpEdDirty: boolean = false;
+	private __ohpEdSlides: HTMLElement[] | null = null;
+	private __ohpEdIdx: number = 0;
+	private __ohpEdKeyHandler: ((evt: KeyboardEvent) => void) | null = null;
+	private __ohpEdPrevBtn: HTMLButtonElement | null = null;
+	private __ohpEdNextBtn: HTMLButtonElement | null = null;
+
 	constructor(leaf: WorkspaceLeaf, private settings: HtmlPluginSettings) {
 		super(leaf);
 		this.settings = settings;
 	}
 
 	async onLoadFile(file: TFile): Promise<void> {
-		// const style = getComputedStyle(this.containerEl.parentElement.querySelector('div.view-header'));
-		// const width = parseFloat(style.width);
-		// const height = parseFloat(style.height);
-		// const tocOffset = height < width ? height : 0;
-	
+		// fork: reset file reference + editing state on each load
+		this.currentFile = file;
+		this.__ohpEdEditing = false;
+		this.__ohpEdDirty = false;
+		this.__ohpEdSlides = null;
+		this.__ohpEdKeyHandler = null;
+
 		this.contentEl.empty();
 	
 		try {
@@ -120,9 +132,10 @@ export class HtmlView extends FileView {
 			}
 				
 			iframe.mainView = this.mainView;
-			this.mainView.app = this.app;
-			this.mainView.settings = this.settings;
-			this.mainView.searchBar = searchBar;
+		this.mainView.app = this.app;
+		this.mainView.settings = this.settings;
+		this.mainView.__ohpBlockLinks = this.settings.blockLinkClick; // fork: initial link-interception state
+		this.mainView.searchBar = searchBar;
 			this.mainView.iframe = iframe;
 			this.mainView.file = file;
 			this.mainView.formStateEligible = isPlainHtml && this.settings.saveFormState
@@ -153,9 +166,32 @@ export class HtmlView extends FileView {
 					iframe.contentWindow.scrollTo( 0, iframe.mainView.pendingScrollY );
 
 				// bubble iframe's 'keydown' event to parent (issue #16)
-				iframe.contentWindow.addEventListener( 'keydown', (evt) => {
-					iframe.dispatchEvent( new evt.constructor(evt.type, evt) );
-				}, false );
+			iframe.contentWindow.addEventListener( 'keydown', (evt) => {
+				iframe.dispatchEvent( new (evt as any).constructor(evt.type, evt) );
+			}, false );
+
+			// fork: intercept external-link clicks (capture phase, runs before page's own
+			// tracking/navigation scripts). Cmd/Ctrl+click always opens the link.
+			iframe.contentWindow.addEventListener( 'click', (evt) => {
+				if( !iframe.mainView.__ohpBlockLinks )
+					return;
+				if( evt.metaKey || evt.ctrlKey )
+					return;
+				if( evt.defaultPrevented )
+					return;
+				const aElm = (evt.composedPath() as HTMLElement[]).find( (elm) => elm.nodeName === "A" ) as HTMLAnchorElement | undefined;
+				if( !aElm || !aElm.getAttribute || !aElm.getAttribute("href") )
+					return;
+				const href = aElm.getAttribute("href")!;
+				if( /^\s*(#|javascript:)/i.test(href) )
+					return;
+				evt.preventDefault();
+				evt.stopPropagation();
+				let shown = aElm.href || href;
+				if( shown.length > 80 )
+					shown = shown.slice(0, 80) + "…";
+				new Notice("已拦截链接点击：" + shown + "\n手动打开：⌘/Ctrl + 点击", 4000);
+			}, true );
 
 				// Workaround: install a fake instanceOf() for Obsidian's app.js to avoid TypeError exception  (issue #33)
 				iframe.contentWindow.document.body.instanceOf = (typeObject) => { return false; };
@@ -273,9 +309,350 @@ export class HtmlView extends FileView {
 					 this.mainView.ResetZoom();
 				} );
 		});
-		
+
+		// fork: visual editing + save + open-in-browser + link-interception toggle
+		menu.addItem((item) => {
+			item
+				.setTitle( this.__ohpEdEditing ? "退出编辑" : "编辑此页面" )
+				.setIcon( "pencil" )
+				.onClick( async () => {
+					await this.toggleEditMode();
+				} );
+		});
+		menu.addItem((item) => {
+			item
+				.setTitle( "保存修改" )
+				.setIcon( "save" )
+				.onClick( async () => {
+					await this.saveEdits();
+				} );
+		});
+		menu.addItem((item) => {
+			item
+				.setTitle( "在默认浏览器中打开" )
+				.setIcon( "globe" )
+				.onClick( async () => {
+					await this.ohpOpenInBrowser();
+				} );
+		});
+		menu.addItem((item) => {
+			const on = this.mainView && (this.mainView as any).__ohpBlockLinks;
+			item
+				.setTitle( "拦截链接点击：" + (on ? "开" : "关") )
+				.setIcon( on ? "shield" : "shield-off" )
+				.onClick( () => {
+					(this.mainView as any).__ohpBlockLinks = !(this.mainView as any).__ohpBlockLinks;
+					new Notice( (this.mainView as any).__ohpBlockLinks
+						? "已开启链接拦截：点击外链不跳转，⌘/Ctrl + 点击手动打开"
+						: "已关闭链接拦截：点击外链直接跳转" );
+				} );
+		});
+
 		menu.addSeparator();
 		super.onPaneMenu(menu, source);
+	}
+
+	// ==================== fork: visual editing ====================
+
+	private ohpEdGetIframe(): HTMLIFrameElement | null {
+		return this.mainView ? this.mainView.querySelector( "#ohpIframe" ) : null;
+	}
+
+	private async ohpOpenInBrowser(): Promise<void> {
+		if( !this.currentFile ) {
+			new Notice( "没有可打开的文件" );
+			return;
+		}
+		try {
+			const adapter: any = this.app.vault.adapter;
+			const absPath = adapter.getFullPath( this.currentFile.path );
+			const { shell } = require( "electron" );
+			await shell.openPath( absPath );
+			new Notice( "已在默认浏览器中打开" );
+		} catch (error) {
+			new Notice( "打开失败：" + error );
+		}
+	}
+
+	private ohpEdDetectSlides( root: HTMLElement ): { list: HTMLElement[]; sel: string } | null {
+		const SELS = [".deck .slide", ".deck > .slide", ".reveal .slides > section", "section.slide", ".slides > section", "main > section", "body > section"];
+		const EX = /number|dot|nav|toc|progress|overview|thumb|counter|pagination|pager|bullet|indicator|scrubber|footer|header|badge|bar\b|btn|button/i;
+		for( const sel of SELS ) {
+			const list = Array.from( root.querySelectorAll( sel ) ).filter(
+				(el) => !EX.test( el.getAttribute("class") || "" )
+			) as HTMLElement[];
+			if( list.length >= 1 )
+				return { list, sel };
+		}
+		return null;
+	}
+
+	// only treat as a real paged deck when slides are hidden-by-default or absolutely stacked
+	private ohpEdIsPaged( list: HTMLElement[] ): boolean {
+		if( !list || !list.length )
+			return false;
+		let hidden = 0, abs = 0;
+		for( const el of list ) {
+			const cs = (el.ownerDocument.defaultView as Window).getComputedStyle( el );
+			if( cs.display === "none" )
+				hidden++;
+			else if( cs.position === "absolute" || cs.position === "fixed" )
+				abs++;
+		}
+		return hidden === list.length || abs === list.length;
+	}
+
+	private async toggleEditMode(): Promise<void> {
+		const iframe = this.ohpEdGetIframe();
+		if( !iframe || !iframe.contentDocument || !iframe.contentDocument.body ) {
+			new Notice( "页面尚未加载完成" );
+			return;
+		}
+		const doc = iframe.contentDocument;
+
+		// ----- exit edit mode -----
+		if( this.__ohpEdEditing ) {
+			doc.getElementById( "__ohpEdStyle" )?.remove();
+			doc.getElementById( "__ohpEdBar" )?.remove();
+			doc.querySelectorAll( ".__ohpCur" ).forEach( (el) => el.classList.remove( "__ohpCur" ) );
+			if( this.__ohpEdKeyHandler ) {
+				iframe.contentWindow!.removeEventListener( "keydown", this.__ohpEdKeyHandler, true );
+				this.__ohpEdKeyHandler = null;
+			}
+			doc.querySelectorAll( "[contenteditable]" ).forEach( (el) => {
+				el.removeAttribute( "contenteditable" );
+				el.removeAttribute( "spellcheck" );
+			} );
+			doc.querySelectorAll( "[data-ohp-ed]" ).forEach( (el) => el.removeAttribute( "data-ohp-ed" ) );
+			doc.querySelectorAll( "[data-ohp-toc-idx]" ).forEach( (el) => el.removeAttribute( "data-ohp-toc-idx" ) );
+			this.__ohpEdEditing = false;
+			new Notice( this.__ohpEdDirty ? "已退出编辑。未保存的修改仍留在预览中，可重新开启编辑后保存。" : "已退出编辑" );
+			return;
+		}
+
+		// ----- enter edit mode -----
+		const style = doc.createElement( "style" );
+		style.id = "__ohpEdStyle";
+		const EDIT_CSS = '[contenteditable]{outline:none}[contenteditable]:hover{box-shadow:0 0 0 2px rgba(59,108,255,.3);border-radius:4px;cursor:text}[contenteditable]:focus{box-shadow:0 0 0 2px rgba(59,108,255,.85);border-radius:4px}img[data-ohp-ed]{cursor:pointer}img[data-ohp-ed]:hover{outline:2px dashed rgba(59,108,255,.75);outline-offset:3px}html,body{height:auto !important;overflow:auto !important}';
+		const det = this.ohpEdDetectSlides( doc.body );
+		this.__ohpEdSlides = det && det.list.length > 1 && this.ohpEdIsPaged( det.list ) ? det.list : [];
+		let navCSS = "";
+		if( this.__ohpEdSlides.length > 1 && det ) {
+			if( det.sel.indexOf( ".deck" ) === 0 )
+				navCSS += ".deck{height:auto !important;min-height:100vh !important;overflow:visible !important}";
+			navCSS += det.sel + "{display:none !important}";
+			navCSS += det.sel + ".__ohpCur{display:block !important;position:relative !important;inset:auto !important;width:100% !important;min-height:100vh !important;opacity:1 !important;visibility:visible !important;transform:none !important;pointer-events:auto !important}";
+			navCSS += "#__ohpEdBar{position:fixed;bottom:18px;left:50%;margin-left:-170px;width:340px;display:flex;align-items:center;justify-content:center;gap:16px;z-index:2147483000;background:rgba(20,24,33,.92);border:1px solid rgba(255,255,255,.14);border-radius:24px;padding:8px 18px;box-shadow:0 8px 30px rgba(0,0,0,.4);font-family:-apple-system,'PingFang SC',sans-serif}";
+			navCSS += "#__ohpEdBar button{cursor:pointer;border:none;background:rgba(59,108,255,.9);color:#fff;width:32px;height:32px;border-radius:50%;font-size:15px;line-height:1;padding:0}";
+			navCSS += "#__ohpEdBar button:disabled{background:rgba(255,255,255,.15);cursor:default}";
+			navCSS += "#__ohpEdIndicator{color:#e8ecf3;font-size:14px;min-width:64px;text-align:center;letter-spacing:.5px;user-select:none}";
+		}
+		style.textContent = EDIT_CSS + navCSS;
+		doc.body.appendChild( style );
+
+		if( this.__ohpEdSlides.length > 1 ) {
+			const bar = doc.createElement( "div" );
+			bar.id = "__ohpEdBar";
+			const prev = doc.createElement( "button" );
+			prev.textContent = "◀";
+			const ind = doc.createElement( "span" );
+			ind.id = "__ohpEdIndicator";
+			const next = doc.createElement( "button" );
+			next.textContent = "▶";
+			bar.appendChild( prev );
+			bar.appendChild( ind );
+			bar.appendChild( next );
+			doc.body.appendChild( bar );
+			this.__ohpEdPrevBtn = prev;
+			this.__ohpEdNextBtn = next;
+			prev.addEventListener( "click", (e) => { e.stopPropagation(); this.ohpEdShow( this.__ohpEdIdx - 1 ); } );
+			next.addEventListener( "click", (e) => { e.stopPropagation(); this.ohpEdShow( this.__ohpEdIdx + 1 ); } );
+			const kh = (evt: KeyboardEvent) => {
+				if( evt.metaKey || evt.ctrlKey || evt.altKey )
+					return;
+				const t = evt.target as HTMLElement | null;
+				if( t && (t.isContentEditable || (t.closest && t.closest( "input,textarea,select" ))) )
+					return;
+				if( evt.key === "ArrowRight" || evt.key === "PageDown" ) {
+					evt.preventDefault();
+					evt.stopPropagation();
+					this.ohpEdShow( this.__ohpEdIdx + 1 );
+				} else if( evt.key === "ArrowLeft" || evt.key === "PageUp" ) {
+					evt.preventDefault();
+					evt.stopPropagation();
+					this.ohpEdShow( this.__ohpEdIdx - 1 );
+				}
+			};
+			this.__ohpEdKeyHandler = kh;
+			iframe.contentWindow!.addEventListener( "keydown", kh, true );
+			const startIdx = this.__ohpEdSlides.findIndex( (s) => s.classList.contains("is-active") || s.classList.contains("present") || s.classList.contains("current") || s.classList.contains("active") );
+			this.ohpEdShow( startIdx >= 0 ? startIdx : 0 );
+		}
+
+		// mark every text-bearing wrapper editable via TreeWalker
+		const SKIP_TAG = new Set( ["SCRIPT","STYLE","NOSCRIPT","TEMPLATE","IMG","BR","HR","IFRAME","CANVAS","VIDEO","AUDIO","INPUT","TEXTAREA","SELECT","OPTION","SVG","PATH","CIRCLE","RECT","ELLIPSE","LINE","POLYGON","POLYLINE","G","TEXT","TSPAN"] );
+		const walker = doc.createTreeWalker( doc.body, NodeFilter.SHOW_TEXT );
+		while( walker.nextNode() ) {
+			const node = walker.currentNode as Text;
+			if( !node.nodeValue || !node.nodeValue.trim() )
+				continue;
+			const el = node.parentElement;
+			if( !el || el === doc.body || el === doc.documentElement )
+				continue;
+			if( SKIP_TAG.has( el.tagName.toUpperCase() ) )
+				continue;
+			if( el.closest( "#__ohpEdBar" ) )
+				continue;
+			if( el.closest( ".toc" ) )
+				continue;
+			if( el.closest( "[contenteditable]" ) )
+				continue;
+			el.setAttribute( "contenteditable", "true" );
+			el.setAttribute( "spellcheck", "false" );
+			el.addEventListener( "input", () => { this.__ohpEdDirty = true; } );
+		}
+
+		// images: click to replace
+		doc.querySelectorAll( "img" ).forEach( (img) => {
+			img.setAttribute( "data-ohp-ed", "1" );
+			img.addEventListener( "click", (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				this.ohpEdReplaceImage( img as HTMLImageElement );
+			} );
+		} );
+
+		// floating TOC (.toc .toc-item): generated by JS from slide data-title.
+		// make button text editable (saved back to data-title); intercept click during edit.
+		doc.querySelectorAll( ".toc .toc-item" ).forEach( (btn) => {
+			const idx = parseInt( btn.getAttribute( "data-toc-idx" ) || "", 10 );
+			if( !(idx >= 0) )
+				return;
+			btn.setAttribute( "contenteditable", "true" );
+			btn.setAttribute( "spellcheck", "false" );
+			btn.setAttribute( "data-ohp-toc-idx", String(idx) );
+			btn.addEventListener( "input", () => { this.__ohpEdDirty = true; } );
+			btn.addEventListener( "click", (e) => {
+				if( this.__ohpEdEditing ) {
+					e.preventDefault();
+					e.stopPropagation();
+				}
+			}, true );
+		} );
+
+		this.__ohpEdEditing = true;
+		new Notice( "编辑模式已开启：← → 切换页面，点击文字修改，点击图片替换；完成后在菜单中选择「保存修改」" );
+	}
+
+	private ohpEdShow( idx: number ): void {
+		const slides = this.__ohpEdSlides || [];
+		if( !slides.length )
+			return;
+		this.__ohpEdIdx = Math.max( 0, Math.min( idx, slides.length - 1 ) );
+		slides.forEach( (s, j) => s.classList.toggle( "__ohpCur", j === this.__ohpEdIdx ) );
+		const iframe = this.ohpEdGetIframe();
+		const idoc = iframe && iframe.contentDocument;
+		if( idoc ) {
+			const ind = idoc.getElementById( "__ohpEdIndicator" );
+			if( ind )
+				ind.textContent = (this.__ohpEdIdx + 1) + " / " + slides.length;
+			if( this.__ohpEdPrevBtn )
+				this.__ohpEdPrevBtn.disabled = this.__ohpEdIdx <= 0;
+			if( this.__ohpEdNextBtn )
+				this.__ohpEdNextBtn.disabled = this.__ohpEdIdx >= slides.length - 1;
+			idoc.documentElement.scrollTop = 0;
+		}
+	}
+
+	private ohpEdReplaceImage( img: HTMLImageElement ): void {
+		const input = document.createElement( "input" );
+		input.type = "file";
+		input.accept = "image/*";
+		input.style.display = "none";
+		document.body.appendChild( input );
+		input.addEventListener( "change", () => {
+			const f = input.files && input.files[0];
+			if( f ) {
+				const r = new FileReader();
+				r.onload = () => {
+					img.src = r.result as string;
+					this.__ohpEdDirty = true;
+					new Notice( "图片已替换（保存后以 Data URL 内嵌）" );
+				};
+				r.readAsDataURL( f );
+			}
+			input.remove();
+		} );
+		input.click();
+	}
+
+	private ohpEdClean( node: HTMLElement ): void {
+		node.querySelector( "#__ohpEdStyle" )?.remove();
+		node.classList.remove( "__ohpCur" );
+		node.querySelectorAll( ".__ohpCur" ).forEach( (el) => el.classList.remove( "__ohpCur" ) );
+		node.querySelectorAll( "[contenteditable]" ).forEach( (el) => {
+			el.removeAttribute( "contenteditable" );
+			el.removeAttribute( "spellcheck" );
+		} );
+		node.querySelectorAll( "[data-ohp-ed]" ).forEach( (el) => el.removeAttribute( "data-ohp-ed" ) );
+		// strip runtime-generated UI (floating TOC, dot-nav, etc.) so it never gets saved back
+		node.querySelectorAll( ".toc, .dot-nav, .progress-bar, .notes-overlay, .overview" ).forEach( (el) => el.remove() );
+	}
+
+	private async saveEdits(): Promise<void> {
+		const iframe = this.ohpEdGetIframe();
+		if( !iframe || !iframe.contentDocument || !this.currentFile ) {
+			new Notice( "没有可保存的文件" );
+			return;
+		}
+		if( !this.__ohpEdEditing && !this.__ohpEdDirty ) {
+			new Notice( "没有需要保存的修改" );
+			return;
+		}
+		const doc = iframe.contentDocument;
+		try {
+			const origHtml = await this.app.vault.read( this.currentFile );
+			const master = new DOMParser().parseFromString( origHtml, "text/html" );
+			const iDet = this.ohpEdDetectSlides( doc.body );
+			const mDet = this.ohpEdDetectSlides( master.body );
+
+			if( iDet && mDet && iDet.list.length === mDet.list.length ) {
+				// collect edited TOC texts (strip number span) to write back into slide data-title
+				const tocTexts: Record<number, string> = {};
+				doc.querySelectorAll( "[data-ohp-toc-idx]" ).forEach( (btn) => {
+					const idx = parseInt( btn.getAttribute( "data-ohp-toc-idx" )!, 10 );
+					if( !(idx >= 0) )
+						return;
+					const c = btn.cloneNode( true ) as HTMLElement;
+					c.querySelectorAll( ".toc-number" ).forEach( (n) => n.remove() );
+					const txt = (c.textContent || "").trim();
+					if( txt )
+						tocTexts[idx] = txt;
+				} );
+				iDet.list.forEach( (iSlide, i) => {
+					const c = iSlide.cloneNode( true ) as HTMLElement;
+					this.ohpEdClean( c );
+					if( tocTexts[i] != null )
+						c.setAttribute( "data-title", tocTexts[i] );
+					mDet.list[i].replaceWith( c );
+				} );
+			} else {
+				if( this.settings.opMode !== HtmlPluginOpMode.Unrestricted ) {
+					new Notice( "该页面无幻灯片结构，当前渲染模式会剥离脚本，为避免破坏原文件请在 Unrestricted 模式下保存" );
+					return;
+				}
+				const cBody = doc.body.cloneNode( true ) as HTMLElement;
+				this.ohpEdClean( cBody );
+				master.body.innerHTML = cBody.innerHTML;
+			}
+
+			const html = "<!DOCTYPE html>\n" + master.documentElement.outerHTML;
+			await this.app.vault.modify( this.currentFile, html );
+			this.__ohpEdDirty = false;
+			new Notice( "已保存：" + this.currentFile.path );
+		} catch (error) {
+			showError( error );
+		}
 	}
 
 	canAcceptExtension(extension: string) {
@@ -533,9 +910,16 @@ async function modifyAnchorTarget( doc: HTMLDocument ): Promise<void> {
 
 async function restoreStateBySettings( doc: HTMLDocument, settings: HtmlPluginSettings ): Promise<void> {
 	// all[0] ==> <html>
-	doc.all[0].style.transformOrigin = "left top"; // CSS transform-origin
-	doc.all[0].style.transform = `scale(${settings.zoomValue})`;
-	
+	// fork fix: only apply transform when zooming — any transform value (even scale(1))
+	// creates a new containing block and breaks position:fixed descendants.
+	if( settings.zoomValue && settings.zoomValue !== 1 ) {
+		doc.all[0].style.transformOrigin = "left top"; // CSS transform-origin
+		doc.all[0].style.transform = `scale(${settings.zoomValue})`;
+	} else {
+		doc.all[0].style.transformOrigin = "";
+		doc.all[0].style.transform = "";
+	}
+
 	if( settings.bgColorEnabled ) {
 		doc.body.setAttribute( "bgColor", settings.bgColor );
 		doc.body.style.backgroundColor = settings.bgColor;
@@ -1112,7 +1496,9 @@ async function buildUserInteractiveFacilities( mainView: HTMLElement ): Promise<
 	};
 	mainView.ResetZoom = () => {
 		settings.zoomValue = 1.0;
-		iframeDoc.all[0].style.transform = `scale(${settings.zoomValue})`;
+		// fork fix: clear transform so position:fixed works again after reset
+		iframeDoc.all[0].style.transformOrigin = "";
+		iframeDoc.all[0].style.transform = "";
 		iframe.contentWindow.focus();
 	};
 	
