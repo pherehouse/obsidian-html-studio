@@ -1,9 +1,9 @@
 {
 	"id": "html-studio",
 	"name": "HTML Studio",
-	"version": "2.0.1",
+	"version": "2.0.2",
 	"minAppVersion": "0.15.3",
-	"description": "Read, view and visually edit HTML files in Obsidian — slide decks, long pages and more. Based on obsidian-html-plugin by Nuthrash.",
+	"description": "Read, view and visually edit HTML files — slide decks, long pages and more. Based on obsidian-html-plugin by Nuthrash.",
 	"author": "pherehouse",
 	"authorUrl": "https://github.com/pherehouse",
 	"isDesktopOnly": true
