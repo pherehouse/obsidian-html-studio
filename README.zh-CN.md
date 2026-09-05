@@ -82,8 +82,8 @@ AI 只需下载一个 zip、解压到插件目录——几秒搞定，无需手�
 
 ### 从 GitHub 手动安装
 
-1. 从 [最新 release](../../releases) 下载 `main.js`、`manifest.json`。
-2. 复制到 `<你的仓库>/.obsidian/plugins/html-studio/`。
+1. 从 [最新 release](../../releases) 下载 `html-studio.zip`。
+2. 解压到 `<你的仓库>/.obsidian/plugins/` —— 自动生成 `html-studio/` 文件夹。
 3. 在 设置 → 第三方插件 中启用 **HTML Studio**。
 
 ### BRAT（推荐用于跟踪更新）

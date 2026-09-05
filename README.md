@@ -82,8 +82,8 @@ The AI downloads one zip, extracts it into the plugins folder — done in second
 
 ### From GitHub (manual)
 
-1. Download `main.js`, `manifest.json` from the [latest release](../../releases).
-2. Copy them into `<your-vault>/.obsidian/plugins/html-studio/`.
+1. Download `html-studio.zip` from the [latest release](../../releases).
+2. Unzip it into `<your-vault>/.obsidian/plugins/` — it creates the `html-studio/` folder for you.
 3. Enable **HTML Studio** in Settings → Community plugins.
 
 ### BRAT (recommended for updates)
