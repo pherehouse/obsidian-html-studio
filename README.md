@@ -13,21 +13,17 @@
 
 </div>
 
-AI is great at generating polished HTML — slide decks, reports, infographics, dashboards. But the moment you need to tweak a title or swap a sentence before sharing, you're back in a code editor staring at tags.
+AI writes great-looking HTML these days — decks, reports, dashboards. But fixing one title before a meeting still means digging through tags.
 
-**HTML Studio closes that loop: AI generates → you edit visually, right on the page → present / share.** No code, no round-trip.
+HTML Studio lets you just **click the text and retype it**. Save, and you're done. That's the whole idea.
 
 ---
 
 ## What makes it different
 
-Most tools stop at *viewing* HTML. HTML Studio lets you **edit it like a document** — click any text and type, click any image and replace it, then save in place. Three things it does that others don't:
-
-- **WYSIWYG editing of any HTML** — a text-node walker marks every editable region (headings, paragraphs, table cells, `div`/`span` text…), regardless of how the page was written. Decks even get page-aware navigation while editing.
-- **Master-merge save** — the original file is re-read from disk and only your edits are merged back. Scripts, styles and everything untouched survive exactly as they were.
-- **Safe by default** — sandboxed rendering with 5 security levels, and external links don't navigate (or fire trackers) on a plain click.
-
-If AI has made *generating* content trivial, HTML Studio makes *refining* it just as easy.
+- **Edit any HTML like a document** — click text to type, click an image to replace it. Works on decks *and* long pages, no matter how the file was written.
+- **Saving never breaks your file** — only your edits are merged back; scripts and styles survive untouched.
+- **Safe out of the box** — sandboxed rendering, and links won't jump (or ping trackers) unless you mean it (`⌘/Ctrl + click`).
 
 ## Features
 
