@@ -65,12 +65,19 @@ Ask your AI assistant (Claude Code, Cursor, Copilot, Trae, etc.) to install it f
 
 ```text
 Install the Obsidian plugin "HTML Studio" for me:
-1. Download main.js and manifest.json from https://github.com/pherehouse/obsidian-html-studio/releases/latest
-2. Put them into <my-vault>/.obsidian/plugins/html-studio/
+1. Download the zip from https://github.com/pherehouse/obsidian-html-studio/releases/latest
+2. Unzip it, put the html-studio folder into <my-vault>/.obsidian/plugins/
 3. Tell me how to enable it in Obsidian settings.
 ```
 
-The AI reads this README, fetches the release files, drops them in the right folder — done in seconds, no manual download needed.
+Or with curl (AI-friendly, one file):
+
+```bash
+curl -fsSL https://github.com/pherehouse/obsidian-html-studio/releases/latest/download/html-studio.zip -o /tmp/html-studio.zip
+unzip -o /tmp/html-studio.zip -d <my-vault>/.obsidian/plugins/
+```
+
+The AI downloads one zip, extracts it into the plugins folder — done in seconds, no manual download needed.
 
 ### From GitHub (manual)
 

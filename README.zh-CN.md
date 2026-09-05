@@ -65,12 +65,19 @@ Obsidian 用户往往保存了大量 HTML 产物：演示文稿、项目简报�
 
 ```text
 帮我安装 Obsidian 插件 "HTML Studio"：
-1. 从 https://github.com/pherehouse/obsidian-html-studio/releases/latest 下载 main.js 和 manifest.json
-2. 放到 <我的仓库>/.obsidian/plugins/html-studio/ 目录下
+1. 从 https://github.com/pherehouse/obsidian-html-studio/releases/latest 下载 zip
+2. 解压后把 html-studio 文件夹放到 <我的仓库>/.obsidian/plugins/ 目录下
 3. 告诉我如何在 Obsidian 设置里启用它
 ```
 
-AI 会读懂这个 README，拉取 release 文件、放进正确的目录——几秒搞定，无需手动下载。
+或者用 curl 一条命令（对 AI 最友好，单个文件）：
+
+```bash
+curl -fsSL https://github.com/pherehouse/obsidian-html-studio/releases/latest/download/html-studio.zip -o /tmp/html-studio.zip
+unzip -o /tmp/html-studio.zip -d <我的仓库>/.obsidian/plugins/
+```
+
+AI 只需下载一个 zip、解压到插件目录——几秒搞定，无需手动下载。
 
 ### 从 GitHub 手动安装
 
