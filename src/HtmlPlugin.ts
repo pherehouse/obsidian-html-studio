@@ -28,7 +28,7 @@ export default class HtmlPlugin extends Plugin {
 			}
 
 			this.registerExtensions(HTML_FILE_EXTENSIONS, VIEW_TYPE_HTML);
-		} catch (error) {
+		} catch {
 			await showError(`File extensions ${HTML_FILE_EXTENSIONS} had been registered by other plugin!`);
 		}
 

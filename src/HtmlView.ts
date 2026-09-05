@@ -1,12 +1,27 @@
-import { WorkspaceLeaf, FileView, TFile, TAbstractFile, sanitizeHTMLToDom, setIcon, Notice } from "obsidian";
-import { HtmlPluginSettings, isMacPlatform, isIosPlatform, DEFAULT_SETTINGS } from './HtmlPluginSettings';
+import { App, Menu, Modifier, WorkspaceLeaf, FileView, TFile, TAbstractFile, setIcon, Notice } from "obsidian";
+import { HtmlPluginSettings, isMacPlatform, isIosPlatform } from './HtmlPluginSettings';
 import { HtmlPluginOpMode } from './HtmlPluginOpMode';
 
 import { extract } from "single-filez-core/processors/compression/compression-extract.js";
 import * as zip from  '@zip.js/zip.js';
 import { convert } from "mhtml-to-html";
+import DOMPurify from 'dompurify';
 import Mark from 'mark.js';
 import NP from 'number-precision'
+
+// Obsidian exposes its own i18next instance as a global; fall back to English
+// text when it is not available (e.g. future app versions).
+declare const i18next: { t: (key: string) => string } | undefined;
+function ohpT( key: string, fallback: string ): string {
+	try {
+		if( typeof i18next !== 'undefined' && i18next && typeof i18next.t === 'function' ) {
+			const translated = i18next.t( key );
+			if( translated && translated !== key )
+				return translated;
+		}
+	} catch {}
+	return fallback;
+}
 
 export const HTML_FILE_EXTENSIONS = ["html", "htm"];
 export const VIEW_TYPE_HTML = "html-view";
@@ -15,8 +30,7 @@ export const MHTML_FILE_EXTENSIONS = ["mht", "mhtml"];
 
 
 export class HtmlView extends FileView {
-	settings: HtmlPluginSettings;
-	mainView!: HTMLElement;
+	mainView!: HTMLElement & Record<string, any>;
 	private watcher: ExternalChangeWatcher | null = null;
 	private watcherRegistered: boolean = false;
 	private pendingScrollY: number = 0;
@@ -33,7 +47,6 @@ export class HtmlView extends FileView {
 
 	constructor(leaf: WorkspaceLeaf, private settings: HtmlPluginSettings) {
 		super(leaf);
-		this.settings = settings;
 	}
 
 	async onLoadFile(file: TFile): Promise<void> {
@@ -62,7 +75,7 @@ export class HtmlView extends FileView {
 			} else {
 				try {
 					// the HTML file made by SingleFileZ
-					globalThis.zip = zip;
+				(window as any).zip = zip;
 					const { docContent } = await extract(new Blob([new Uint8Array(contents)]), { noBlobURL: true });
 
 					htmlStr = docContent;
@@ -79,13 +92,13 @@ export class HtmlView extends FileView {
 			
 			let parser = new DOMParser();
 			this.mainView = this.contentEl.createDiv();
-			this.mainView.setAttribute( "style", "display: flex; flex-direction: column; height: 100%; padding: 0;" );
+			this.mainView.addClass( 'html-studio-main-view' );
 			//this.mainView.insertAdjacentHTML( 'beforeend', MAINVIEW_HTML ); // direct assign safe HTML code
 			let mainViewEl = parser.parseFromString( MAINVIEW_HTML, 'text/html' );
 			this.mainView.appendChild( mainViewEl.body.childNodes[0] ); // append document-search-container
 			this.mainView.appendChild( mainViewEl.body.childNodes[1] ); // append iframe
-			const searchBar = this.mainView.querySelector( "#ohpMainView" );
-			const iframe = this.mainView.querySelector( "#ohpIframe" );
+			const searchBar = this.mainView.querySelector( "#ohpMainView" ) as HTMLElement & Record<string, any>;
+			const iframe = this.mainView.querySelector( "#ohpIframe" ) as HTMLIFrameElement & Record<string, any>;
 			const baseHref = getHtmlBaseHref( this.app, file );
 			
 			let dom = null, applyAnchorFix = true;
@@ -114,17 +127,17 @@ export class HtmlView extends FileView {
 					break;
 				
 				case HtmlPluginOpMode.HighRestricted:
-					const purifier = new DOMPurify();
-					purifier.addHook( 'afterSanitizeAttributes' , ohpAfterSanitizeAttributes ); // disable some elements to avoid XSS attacks
-					const cleanHtmlHR = purifier.sanitize( injectBaseHrefToHtml(htmlStr, baseHref), hrModeConfig );
+					DOMPurify.addHook( 'afterSanitizeAttributes' , ohpAfterSanitizeAttributes ); // disable some elements to avoid XSS attacks
+					const cleanHtmlHR = DOMPurify.sanitize( injectBaseHrefToHtml(htmlStr, baseHref), hrModeConfig );
+					DOMPurify.removeHook( 'afterSanitizeAttributes' ); // keep the singleton clean for other modes
 					// iframe.sandbox = "allow-forms allow-modals allow-pointer-lock allow-popups allow-presentation allow-top-navigation-by-user-activation";
 					iframe.csp = "default-src 'none'; script-src 'none'; object-src 'none'; frame-src https: http: mediastream: blob:; font-src 'self' data:; img-src 'self' data:; style-src 'unsafe-inline'; media-src 'self' data:; "; 
 					iframe.srcdoc = cleanHtmlHR;
 					break;
 									
 				case HtmlPluginOpMode.Text:
-					const cleanHtmlText = (new DOMPurify()).sanitize( injectBaseHrefToHtml(htmlStr, baseHref), textModeConfig );
-					iframe.sandbox = "allow-same-origin";
+					const cleanHtmlText = DOMPurify.sanitize( injectBaseHrefToHtml(htmlStr, baseHref), textModeConfig );
+					iframe.setAttribute( 'sandbox', 'allow-same-origin' );
 					iframe.csp = "default-src 'none'; script-src 'none'; object-src 'none'; frame-src 'none'; font-src 'self' data:; img-src 'none'; style-src 'unsafe-inline'; media-src 'none'; ";
 					iframe.srcdoc = cleanHtmlText;
 					applyAnchorFix = false
@@ -152,7 +165,7 @@ export class HtmlView extends FileView {
 				if( applyAnchorFix ) {
 					// fix some behaviors for consistency with Shadow DOM and Obsidian
 					applyUserInteractivePatches( iframe.contentDocument );
-					await modifyAnchorTarget( iframe.contentDocument );
+					await modifyAnchorTarget( iframe.contentDocument, iframe.mainView.app );
 					iframe.contentWindow.addEventListener( 'click', sdFixAnchorClickHandler );
 				}
 
@@ -167,7 +180,7 @@ export class HtmlView extends FileView {
 
 				// bubble iframe's 'keydown' event to parent (issue #16)
 			iframe.contentWindow.addEventListener( 'keydown', (evt) => {
-				iframe.dispatchEvent( new (evt as any).constructor(evt.type, evt) );
+				iframe.dispatchEvent( new KeyboardEvent(evt.type, evt) );
 			}, false );
 
 			// fork: intercept external-link clicks (capture phase, runs before page's own
@@ -182,7 +195,7 @@ export class HtmlView extends FileView {
 				const aElm = (evt.composedPath() as HTMLElement[]).find( (elm) => elm.nodeName === "A" ) as HTMLAnchorElement | undefined;
 				if( !aElm || !aElm.getAttribute || !aElm.getAttribute("href") )
 					return;
-				const href = aElm.getAttribute("href")!;
+				const href = aElm.getAttribute("href");
 				if( /^\s*(#|javascript:)/i.test(href) )
 					return;
 				evt.preventDefault();
@@ -273,7 +286,7 @@ export class HtmlView extends FileView {
 		this.reloadFile();
 	}
 	
-	onPaneMenu(menu: Menu, source: 'more-options' | 'tab-header' | string): void {
+	onPaneMenu(menu: Menu, source: string): void {
 		if( source !== 'more-options' ) // only handle 'more-options' onMoreOptionsMenu()
 			return;
 
@@ -287,7 +300,7 @@ export class HtmlView extends FileView {
 		});
 		menu.addItem((item) => {
 			item
-				.setTitle( i18next.t("commands.zoom-in") )
+				.setTitle( ohpT("commands.zoom-in", "Zoom in") )
 				.setIcon( "plus-with-circle" )
 				.onClick( async () => {
 					 this.mainView.ZoomIn();
@@ -355,7 +368,7 @@ export class HtmlView extends FileView {
 	// ==================== fork: visual editing ====================
 
 	private ohpEdGetIframe(): HTMLIFrameElement | null {
-		return this.mainView ? this.mainView.querySelector( "#ohpIframe" ) : null;
+		return this.mainView ? this.mainView.querySelector( "#ohpIframe" ) as HTMLIFrameElement & Record<string, any> : null;
 	}
 
 	private async ohpOpenInBrowser(): Promise<void> {
@@ -416,7 +429,7 @@ export class HtmlView extends FileView {
 			doc.getElementById( "__ohpEdBar" )?.remove();
 			doc.querySelectorAll( ".__ohpCur" ).forEach( (el) => el.classList.remove( "__ohpCur" ) );
 			if( this.__ohpEdKeyHandler ) {
-				iframe.contentWindow!.removeEventListener( "keydown", this.__ohpEdKeyHandler, true );
+				iframe.contentWindow.removeEventListener( "keydown", this.__ohpEdKeyHandler, true );
 				this.__ohpEdKeyHandler = null;
 			}
 			doc.querySelectorAll( "[contenteditable]" ).forEach( (el) => {
@@ -484,7 +497,7 @@ export class HtmlView extends FileView {
 				}
 			};
 			this.__ohpEdKeyHandler = kh;
-			iframe.contentWindow!.addEventListener( "keydown", kh, true );
+			iframe.contentWindow.addEventListener( "keydown", kh, true );
 			const startIdx = this.__ohpEdSlides.findIndex( (s) => s.classList.contains("is-active") || s.classList.contains("present") || s.classList.contains("current") || s.classList.contains("active") );
 			this.ohpEdShow( startIdx >= 0 ? startIdx : 0 );
 		}
@@ -518,7 +531,7 @@ export class HtmlView extends FileView {
 			img.addEventListener( "click", (e) => {
 				e.preventDefault();
 				e.stopPropagation();
-				this.ohpEdReplaceImage( img as HTMLImageElement );
+				this.ohpEdReplaceImage( img );
 			} );
 		} );
 
@@ -565,10 +578,8 @@ export class HtmlView extends FileView {
 	}
 
 	private ohpEdReplaceImage( img: HTMLImageElement ): void {
-		const input = document.createElement( "input" );
-		input.type = "file";
+		const input = createEl( "input", { type: "file", cls: "html-studio-hidden-input" } );
 		input.accept = "image/*";
-		input.style.display = "none";
 		document.body.appendChild( input );
 		input.addEventListener( "change", () => {
 			const f = input.files && input.files[0];
@@ -620,7 +631,7 @@ export class HtmlView extends FileView {
 				// collect edited TOC texts (strip number span) to write back into slide data-title
 				const tocTexts: Record<number, string> = {};
 				doc.querySelectorAll( "[data-ohp-toc-idx]" ).forEach( (btn) => {
-					const idx = parseInt( btn.getAttribute( "data-ohp-toc-idx" )!, 10 );
+					const idx = parseInt( btn.getAttribute( "data-ohp-toc-idx" ), 10 );
 					if( !(idx >= 0) )
 						return;
 					const c = btn.cloneNode( true ) as HTMLElement;
@@ -643,7 +654,10 @@ export class HtmlView extends FileView {
 				}
 				const cBody = doc.body.cloneNode( true ) as HTMLElement;
 				this.ohpEdClean( cBody );
-				master.body.innerHTML = cBody.innerHTML;
+				// store requirement: no direct innerHTML assignment (unsafe) —
+				// import the edited nodes into the master document instead
+				const importedNodes = Array.from( cBody.childNodes ).map( (n) => master.importNode( n, true ) );
+				master.body.replaceChildren( ...importedNodes );
 			}
 
 			const html = "<!DOCTYPE html>\n" + master.documentElement.outerHTML;
@@ -699,11 +713,34 @@ function injectBaseHrefToHtml(htmlStr: string, baseHref: string): string {
 	}
 }
 
-export async function showError(e: Error | any): Promise<void> {
+export async function showError(e: unknown): Promise<void> {
 	const notice = new Notice("", 8000);
-	// @ts-ignore
-	notice.messageEl.createEl('strong', { text: 'HTML Reader error' });
-	notice.messageEl.createDiv({ text: `${e.message}` });
+	notice.messageEl.createEl('strong', { text: 'HTML Studio error' });
+	notice.messageEl.createDiv({ text: e instanceof Error ? e.message : String(e) });
+}
+
+// store requirement: no direct style assignments (obsidianmd/no-static-styles-assignment).
+// Styles for the rendered document (both the pre-parse document and the live
+// iframe document) are applied through a dedicated <style> element instead.
+function setDocPatchStyle( doc: Document, id: string, css: string ): void {
+	let styleEl = doc.getElementById( id );
+	if( !styleEl ) {
+		styleEl = doc.createElement( 'style' );
+		styleEl.id = id;
+		( doc.head || doc.documentElement ).appendChild( styleEl );
+	}
+	styleEl.textContent = css;
+}
+
+const ZOOM_STYLE_ID = '__ohpZoomStyle';
+
+function setZoomStyle( doc: Document, zoomValue: number ): void {
+	// fork fix: only apply transform when zooming — any transform value (even scale(1))
+	// creates a new containing block and breaks position:fixed descendants.
+	setDocPatchStyle( doc, ZOOM_STYLE_ID,
+		zoomValue && zoomValue !== 1
+			? `html{transform-origin:left top;transform:scale(${zoomValue});}`
+			: '' );
 }
 
 // while clicking, fix internal links(in-page anchor) replaced by Shadow Root and IFrame at runtime
@@ -778,7 +815,7 @@ async function sanitizeAndApplyPatches( doc: HTMLDocument ): Promise<void> {
 			elm.removeAttribute( attrName );
 		}
 		
-		if( elm instanceof HTMLAnchorElement ) {
+		if( elm.instanceOf(HTMLAnchorElement) ) {
 			// ESLint
 			/*			
 			if( elm.target === '_blank') {
@@ -790,16 +827,16 @@ async function sanitizeAndApplyPatches( doc: HTMLDocument ): Promise<void> {
 			*/
 			
 			// avoid XSS attack
-			if( elm.href && elm.protocol.contains("javascript:") ) {
-				elm.setAttribute( 'href', 'javascript:void(0)' );
-				elm.setAttribute( 'style', 'cursor: default;' );
-			}
-		} else if( elm instanceof HTMLInputElement ) {
+		if( elm.href && elm.protocol.contains("javascript:") ) {
+			elm.setAttribute( 'href', 'javascript:void(0)' );
+			elm.classList.add( 'ohp-disabled-link' ); // cursor style comes from the patch <style> below
+		}
+		} else if( elm.instanceOf(HTMLInputElement) ) {
 			// This is ignored if the value of the type attribute is hidden, range, color, checkbox, radio, file, or a button type.
 			elm.readOnly = true;
-		} else if( elm instanceof HTMLTextAreaElement ) {
+		} else if( elm.instanceOf(HTMLTextAreaElement) ) {
 			elm.setAttribute( 'disabled', 'disabled' );
-		} else if( elm instanceof HTMLIFrameElement ) {
+		} else if( elm.instanceOf(HTMLIFrameElement) ) {
 			if( elm.src && elm.src !== "about:blank" ) {
 				// avoid XSS attack
 				try {
@@ -818,39 +855,40 @@ async function sanitizeAndApplyPatches( doc: HTMLDocument ): Promise<void> {
 }
 
 function applyUserInteractivePatches( doc: HTMLDocument ) {
-	if( !doc.body.style ) {
-		doc.body.setAttribute( 'style', "overflow-x: hidden; overflow-y: auto; user-select: text; max-width: 100%; word-wrap: break-word;" );
-		return;
-	}
-	
+	// store requirement: styles are applied via an injected <style> element
+	// instead of direct assignments (obsidianmd/no-static-styles-assignment)
+	let css = '';
+
 	// avoid some HTML files unable to scroll, only when 'overflow' is not set
-	if( doc.body.style.overflow === '' ) {
-		doc.body.style.overflowX = 'hidden';
-		doc.body.style.overflowY = 'auto';
-	}
+	if( doc.body.style.overflow === '' )
+		css += 'body{overflow-x:hidden;overflow-y:auto;}';
 	// avoid horizontal overflow on any element
 	if( doc.body.style.maxWidth === '' )
-		doc.body.style.maxWidth = '100%';
+		css += 'body{max-width:100%;}';
 	// avoid some HTML files unable to select text, only when 'user-select' is not set
 	if( doc.body.style.userSelect === '' )
-		doc.body.style.userSelect = 'text';
-	
+		css += 'body{user-select:text;}';
 	// also constrain html root element
 	if( doc.documentElement.style.overflowX === '' )
-		doc.documentElement.style.overflowX = 'hidden';
+		css += 'html{overflow-x:hidden;}';
+
+	// javascript: links disabled by the sanitize hooks (Balance / High Restricted modes)
+	css += '.ohp-disabled-link{cursor:default;}';
+
+	setDocPatchStyle( doc, '__ohpPatchStyle', css );
 }
 
 async function removeScriptTagsAndExtScripts( doc: HTMLDocument ): Promise<void> {
 	let allNodes = doc.querySelectorAll( 'script' );
-	for( var node of allNodes ) {
+	for( const node of allNodes ) {
 		// keep the inert JSON form state block (it is not executable)
 		if( node.id === OHP_STATE_ID && node.getAttribute('type') === 'application/json' )
 			continue;
 		node.parentNode.removeChild( node );
 	}
-	
-	allNodes = doc.querySelectorAll( 'link' );
-	for( var node of allNodes ) {
+
+	const linkNodes = doc.querySelectorAll( 'link' );
+	for( const node of linkNodes ) {
 		if( !node.rel )
 			continue;
 		
@@ -861,7 +899,7 @@ async function removeScriptTagsAndExtScripts( doc: HTMLDocument ): Promise<void>
 	}
 }
 
-async function modifyAnchorTarget( doc: HTMLDocument ): Promise<void> {
+async function modifyAnchorTarget( doc: HTMLDocument, app: App ): Promise<void> {
 	let baseElm = doc.querySelector( 'base' );
 	if( !baseElm ) {
 		baseElm = doc.createElement( 'base' );
@@ -909,16 +947,8 @@ async function modifyAnchorTarget( doc: HTMLDocument ): Promise<void> {
 }
 
 async function restoreStateBySettings( doc: HTMLDocument, settings: HtmlPluginSettings ): Promise<void> {
-	// all[0] ==> <html>
-	// fork fix: only apply transform when zooming — any transform value (even scale(1))
-	// creates a new containing block and breaks position:fixed descendants.
-	if( settings.zoomValue && settings.zoomValue !== 1 ) {
-		doc.all[0].style.transformOrigin = "left top"; // CSS transform-origin
-		doc.all[0].style.transform = `scale(${settings.zoomValue})`;
-	} else {
-		doc.all[0].style.transformOrigin = "";
-		doc.all[0].style.transform = "";
-	}
+	// zoom is applied via the injected zoom <style> element (see setZoomStyle)
+	setZoomStyle( doc, settings.zoomValue );
 
 	if( settings.bgColorEnabled ) {
 		doc.body.setAttribute( "bgColor", settings.bgColor );
@@ -980,7 +1010,7 @@ export function createExternalChangeWatcher( opts: {
 				return;
 			if( timer )
 				window.clearTimeout( timer );
-			timer = window.setTimeout( reload, delay );
+			timer = window.setTimeout( () => void reload(), delay );
 		},
 		dispose: () => {
 			disposed = true;
@@ -1090,7 +1120,7 @@ async function setupFormStatePersistence( mainView: any ): Promise<void> {
 	const stateElm = doc.getElementById( OHP_STATE_ID );
 	if( stateElm ) {
 		// give the page's scripts a moment to finish initialization
-		await new Promise( (resolve) => setTimeout(resolve, 150) );
+		await new Promise( (resolve) => window.setTimeout(resolve, 150) );
 		try {
 			restoreFormState( doc, JSON.parse(stateElm.textContent) );
 		} catch (e) {
@@ -1132,7 +1162,7 @@ async function setupFormStatePersistence( mainView: any ): Promise<void> {
 	const schedule = () => {
 		if( saveTimer )
 			window.clearTimeout( saveTimer );
-		saveTimer = window.setTimeout( saveNow, 1000 );
+		saveTimer = window.setTimeout( () => void saveNow(), 1000 );
 	};
 
 	// listeners are attached after restore, so restoring does not re-trigger a save
@@ -1158,7 +1188,7 @@ async function setupFormStatePersistence( mainView: any ): Promise<void> {
 }
 
 function isUnselectableElement( elm: HTMLElement ): boolean {
-	var style = getComputedStyle(elm);
+	const style = getComputedStyle(elm);
 	return ((style.display === 'none') || (elm.offsetWidth === 0))
 }
 
@@ -1230,9 +1260,9 @@ function checkHotkeyModifier( modifiers: Modifier[], evt: KeyboardEvent | MouseE
 	return true;
 }
 
-async function buildUserInteractiveFacilities( mainView: HTMLElement ): Promise<void> {
-	const searchBar: HTMLElement = mainView.searchBar;
-	const iframe: HTMLElement = mainView.iframe;
+async function buildUserInteractiveFacilities( mainView: HTMLElement & Record<string, any> ): Promise<void> {
+	const searchBar: HTMLElement & Record<string, any> = mainView.searchBar;
+	const iframe: HTMLIFrameElement & Record<string, any> = mainView.iframe;
 	const settings: HtmlPluginSettings = mainView.settings;
 	
 	let isSearchBarVisible: boolean = false, hltAllNodes: boolean = false;
@@ -1391,7 +1421,7 @@ async function buildUserInteractiveFacilities( mainView: HTMLElement ): Promise<
 	};
 	
 	// mark all searching text with tmpOpt/obsOpt
-	const findAll = (text, markAll, selObj) => {
+	const findAll = (text, markAll, selObj?) => {
 		clearAllMarks( true );
 		
 		allMatched.length = 0; // clear array to empty
@@ -1449,7 +1479,7 @@ async function buildUserInteractiveFacilities( mainView: HTMLElement ): Promise<
 	
 	// add MenuItem polyfill methods
 	mainView.openSearch = () => {
-		searchBar.style.display = 'inherit'; // show Search box
+		searchBar.classList.remove( 'html-studio-search-hidden' ); // show Search box
 		isSearchBarVisible = true;
 		input.focus();
 		
@@ -1483,7 +1513,7 @@ async function buildUserInteractiveFacilities( mainView: HTMLElement ): Promise<
 	};
 	mainView.ZoomIn = () => {
 		settings.zoomValue = NP.plus( settings.zoomValue, 0.1 );
-		iframeDoc.all[0].style.transform = `scale(${settings.zoomValue})`;
+		setZoomStyle( iframeDoc, settings.zoomValue );
 		iframe.contentWindow.focus();
 	};
 	mainView.ZoomOut = () => {
@@ -1491,14 +1521,13 @@ async function buildUserInteractiveFacilities( mainView: HTMLElement ): Promise<
 		if( scaleValue <= 0.1 )
 			scaleValue = 0.1;
 		settings.zoomValue = scaleValue;
-		iframeDoc.all[0].style.transform = `scale(${settings.zoomValue})`;
+		setZoomStyle( iframeDoc, settings.zoomValue );
 		iframe.contentWindow.focus();
 	};
 	mainView.ResetZoom = () => {
 		settings.zoomValue = 1.0;
 		// fork fix: clear transform so position:fixed works again after reset
-		iframeDoc.all[0].style.transformOrigin = "";
-		iframeDoc.all[0].style.transform = "";
+		setZoomStyle( iframeDoc, settings.zoomValue );
 		iframe.contentWindow.focus();
 	};
 	
@@ -1509,7 +1538,7 @@ async function buildUserInteractiveFacilities( mainView: HTMLElement ): Promise<
 	const hksResetZoom = mapNativeHotkeys( mainView.app, 'window:reset-zoom' );
 	
 	// add event handlers
-	const input = searchBar.querySelector( '#ohpSearchInput' );
+	const input = searchBar.querySelector( '#ohpSearchInput' ) as HTMLInputElement;
 	input.addEventListener( 'keyup', (evt) => {
 		if( (evt.altKey && evt.keyCode === 13) ) { // handle "select all" command when press Alt+Enter
 			sall.click();
@@ -1518,19 +1547,19 @@ async function buildUserInteractiveFacilities( mainView: HTMLElement ): Promise<
 			next.click();
 		}
 	} );
-	const next = searchBar.querySelector( '#ohpSearchNext' );
+	const next = searchBar.querySelector( '#ohpSearchNext' ) as HTMLButtonElement;
 	next.addEventListener( 'click', (evt) => {
 		checkAndUpdateMatches();
 		findNext();
 	} );
 	setIcon( next, 'lucide-arrow-down' );
-	const prev = searchBar.querySelector( '#ohpSearchPrev' );
+	const prev = searchBar.querySelector( '#ohpSearchPrev' ) as HTMLButtonElement;
 	prev.addEventListener( 'click', (evt) => {
 		checkAndUpdateMatches();
 		findPrev();
 	} );
 	setIcon( prev, 'lucide-arrow-up' );
-	const sall = searchBar.querySelector( '#ohpSearchSelectAll' );
+	const sall = searchBar.querySelector( '#ohpSearchSelectAll' ) as HTMLButtonElement;
 	sall.addEventListener( 'click', (evt) => {
 		checkAndUpdateMatches();
 		if( !curText ) {
@@ -1540,14 +1569,14 @@ async function buildUserInteractiveFacilities( mainView: HTMLElement ): Promise<
 		}
 	} );
 	setIcon( sall, 'lucide-text-select' );
-	const exit = searchBar.querySelector( '#ohpSearchExit' );
+	const exit = searchBar.querySelector( '#ohpSearchExit' ) as HTMLElement;
 	exit.addEventListener( 'click', (evt) => {
 		// clear highlight marks, but keep curText and tmp class
 		let preAllNodes = hltAllNodes;
 		clearAllMarks( false );
 		hltAllNodes = preAllNodes;
 		
-		searchBar.style.display = 'none'; // hide Search bar
+		searchBar.classList.add( 'html-studio-search-hidden' ); // hide Search bar
 		isSearchBarVisible = false;
 		iframe.contentWindow.focus();
 	} );
@@ -1751,14 +1780,14 @@ const HIGHLIGHT_CLASS_NAME: string = 'obsidian-search-match-mark'; // block mark
 const MARK_CLASS_NAME: string = 'obsidian-search-match-mark'; // block mark for across elements
 
 const MAINVIEW_HTML: string = `
-<div class="document-search-container" style="display: none; border: none; width: 100%" width="100%" id="ohpMainView">
+<div class="document-search-container html-studio-search-container html-studio-search-hidden" width="100%" id="ohpMainView">
   <div class="document-search">
-    <input class="document-search-input" type="search" placeholder="${i18next.t("editor.search.placeholder-find")}" id="ohpSearchInput">
+    <input class="document-search-input" type="search" placeholder="${ohpT("editor.search.placeholder-find", "Find…")}" id="ohpSearchInput">
     <div class="document-search-buttons">
-      <button class="document-search-button" aria-label="${i18next.t("editor.search.label-previous")} ${isAppleSys ? "⇧F3" : "Shift + F3"}" aria-label-position="top" id="ohpSearchPrev"></button>
-      <button class="document-search-button" aria-label="${i18next.t("editor.search.label-next")} F3" aria-label-position="top" id="ohpSearchNext"></button>
-      <button class="document-search-button" aria-label="${i18next.t("editor.search.label-find-all")} ${isAppleSys ? "⌥Enter" : "Alt + Enter"}" aria-label-position="top" id="ohpSearchSelectAll"></button>
-	  <span class="document-search-close-button" aria-label="${i18next.t("editor.search.label-exit-search")}" aria-label-position="top" id="ohpSearchExit"></span>
+      <button class="document-search-button" aria-label="${ohpT("editor.search.label-previous", "Previous")} ${isAppleSys ? "⇧F3" : "Shift + F3"}" aria-label-position="top" id="ohpSearchPrev"></button>
+      <button class="document-search-button" aria-label="${ohpT("editor.search.label-next", "Next")} F3" aria-label-position="top" id="ohpSearchNext"></button>
+      <button class="document-search-button" aria-label="${ohpT("editor.search.label-find-all", "Find all")} ${isAppleSys ? "⌥Enter" : "Alt + Enter"}" aria-label-position="top" id="ohpSearchSelectAll"></button>
+	  <span class="document-search-close-button" aria-label="${ohpT("editor.search.label-exit-search", "Close search")}" aria-label-position="top" id="ohpSearchExit"></span>
     </div>
   </div>
 </div>
@@ -1821,7 +1850,7 @@ const hrModeConfig = {
 	// allow external protocol handlers in URL attributes (default is false, be careful, XSS risk)
 	// by default only http, https, ftp, ftps, tel, mailto, callto, cid and xmpp are allowed.
 	// ALLOW_UNKNOWN_PROTOCOLS: true,
-	ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp|app):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+	ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp|app):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
 	// extend the existing array of elements that are safe for URI-like values (be careful, XSS risk)
 	//ADD_URI_SAFE_ATTR: ['my-attr']
 	

@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, TFolder, Vault, Modifier } from "obsidian";
+import { App, Platform, PluginSettingTab, Setting, Modifier } from "obsidian";
 import HtmlPlugin from "./HtmlPlugin";
 import { HtmlPluginOpMode, OP_MODE_INFO_DATA, OP_MODE_INFO_HTML } from "./HtmlPluginOpMode";
 
@@ -41,14 +41,11 @@ export class HtmlSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
-		containerEl.createEl('h1', { text: 'HTML Studio Settings' });
-		containerEl.createEl('pre', { text: '※ Remember to reload the file after changing any setting.'})
-						.setAttribute('style', 'color:red; white-space: pre-wrap; word-break: break-word;');
+		// store requirement: no plugin-name / "settings" / "General" headings
+		// (obsidianmd/settings-tab/no-problematic-settings-headings)
+		containerEl.createEl( 'pre', { text: '※ Remember to reload the file after changing any setting.', cls: 'html-studio-reload-hint' } );
 
-		// ----- General Settings -----
-		containerEl.createEl('h2', { text: 'General Settings' });
-
-		// ----- General Settings: Operating Mode -----
+		// ----- Operating Mode -----
 		const opModeSetting = new Setting(containerEl);
 		opModeSetting
 			.setName("Operating Mode")
@@ -161,8 +158,8 @@ export class HtmlSettingTab extends PluginSettingTab {
 					});
 			});
 
-		// ----- HotKeys and Touch Gestures Settings -----
-		containerEl.createEl('h2', { text: 'HotKeys and Touch Gestures Settings' });
+		// ----- HotKeys and Touch Gestures -----
+		new Setting( containerEl ).setName( 'Hotkeys and touch gestures' ).setHeading();
 		containerEl.createEl('small', { text: `Almost all keyboard hotkeys are taken from Obsidian's global hotkey settings, so you shall modify them via ⚙"Settings" ⇨ "Hotkeys" options page.` });
 
 		this.buildHotkeySettings();
@@ -231,7 +228,7 @@ export class HtmlSettingTab extends PluginSettingTab {
 				for( let i = 0; i < pair.settings.length; ++i ) {
 					if( i >= 2 ) {
 						// only show first two hotkeys
-						let eps = pair.elm.controlEl.createEl('span');
+						let eps = pair.elm.controlEl.createSpan();
 						eps.textContent = '...';
 						break;
 					}
@@ -267,18 +264,11 @@ export class HtmlSettingTab extends PluginSettingTab {
 	}
 }
 
-// https://forum.obsidian.md/t/identify-platform-operating-system/27878/3
+// Platform detection via the official Platform API (store requirement:
+// obsidianmd/platform — navigator.userAgent/platform sniffing is not allowed)
 export function isMacPlatform(): boolean {
-	const macosPlatforms = ['Macintosh', 'MacIntel', 'MacPPC', 'Mac68K'];
-	if( macosPlatforms.indexOf(window.navigator.platform) !== -1 )
-		return true;
-	return false;
+	return Platform.isMacOS;
 }
 export function isIosPlatform(): boolean {
-	const iosPlatforms = ['iPhone', 'iPad', 'iPod'];
-	const userAgent = window.navigator.userAgent;
-	for( let plat of iosPlatforms )
-		if( userAgent.contains(plat) )
-			return true;
-	return false;
+	return Platform.isIosApp || Platform.isPhone || Platform.isTablet;
 }
