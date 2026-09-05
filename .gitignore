@@ -1,8 +1,4 @@
-# Obsidian plugin personal settings — never commit
+node_modules/
 data.json
-
-# Internal notes
-CLAUDE.md
-
-# OS
 .DS_Store
+*.log
