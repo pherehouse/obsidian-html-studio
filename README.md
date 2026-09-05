@@ -13,15 +13,21 @@
 
 </div>
 
-HTML Studio is an Obsidian plugin that turns your vault into a workspace for HTML files — from slide decks to long-form reports. Open any `.html` / `.htm` file, browse it in a sandboxed viewer, **click-to-edit its content**, and save changes back — no external editor needed.
+AI is great at generating polished HTML — slide decks, reports, infographics, dashboards. But the moment you need to tweak a title or swap a sentence before sharing, you're back in a code editor staring at tags.
 
-> Based on [obsidian-html-plugin](https://github.com/nuthrash/obsidian-html-plugin) by **Nuthrash**, with major additions. Full credits below. 🙏
+**HTML Studio closes that loop: AI generates → you edit visually, right on the page → present / share.** No code, no round-trip.
 
 ---
 
-## Why HTML Studio?
+## What makes it different
 
-Obsidian users keep lots of HTML artifacts: presentation decks, project briefs, exported reports, dashboards. Until now you could only *view* them — any edit meant switching to an external editor and losing your vault context. HTML Studio adds a **visual editing layer** on top of a hardened viewer, so quick fixes ("change the date", "swap a name", "replace an image") happen where the file lives.
+Most tools stop at *viewing* HTML. HTML Studio lets you **edit it like a document** — click any text and type, click any image and replace it, then save in place. Three things it does that others don't:
+
+- **WYSIWYG editing of any HTML** — a text-node walker marks every editable region (headings, paragraphs, table cells, `div`/`span` text…), regardless of how the page was written. Decks even get page-aware navigation while editing.
+- **Master-merge save** — the original file is re-read from disk and only your edits are merged back. Scripts, styles and everything untouched survive exactly as they were.
+- **Safe by default** — sandboxed rendering with 5 security levels, and external links don't navigate (or fire trackers) on a plain click.
+
+If AI has made *generating* content trivial, HTML Studio makes *refining* it just as easy.
 
 ## Features
 
@@ -36,7 +42,7 @@ Open `.html` / `.htm` / `.mhtml` files directly in Obsidian — rendered, not as
 - **Open in default browser** — one menu action to hand the file over to your system browser for a full-fidelity look.
 - **Bug fix over upstream:** `position: fixed` elements stay pinned correctly (upstream broke them by always applying `transform: scale(1)`).
 
-### ✏️ Visual Editing (new in this fork)
+### ✏️ Visual Editing
 
 - **Click-to-edit text** — every text block in the file is editable in place: headings, paragraphs, list items, table cells, and text inside `div`/`span` elements. A text-node walker marks all editable regions automatically, regardless of the page's tag conventions.
 - **Replace images** — click any image and pick a local file; it is embedded as a Data URL, so the saved file stays fully self-contained and works offline.
@@ -44,7 +50,7 @@ Open `.html` / `.htm` / `.mhtml` files directly in Obsidian — rendered, not as
 - **Edit dynamic TOC navigation** (v2.0.1) — JS-generated floating TOCs (built at runtime from each slide's `data-title`) are editable too: click the nav text, and on save it's written back to the corresponding slide. Runtime-generated UI is never written into your file.
 - **Safe save (master-merge)** — on save, the file is re-read from disk as a master copy and only the edited sections are replaced back. Scripts, styles and everything untouched by the edit survive exactly as they were — even if the preview mode had stripped them.
 
-### 🛡 Safe Link Handling (new in this fork)
+### 🛡 Safe Link Handling
 
 - External links don't navigate on a plain click — which also prevents accidental tracking/analytics triggers. Use `⌘/Ctrl + click` to open deliberately, or toggle interception on/off in the page menu.
 
@@ -98,7 +104,7 @@ Add this repo to [BRAT](https://github.com/TfTHacker/obsidian42-brat) and it wil
 ## Credits & License
 
 - **This project** is developed and maintained by [pherehouse](https://github.com/pherehouse).
-- **Forked from** [obsidian-html-plugin](https://github.com/nuthrash/obsidian-html-plugin) by **Nuthrash** — thank you for the solid viewer foundation, the multi-mode rendering pipeline and MHTML support. This fork's additions: visual editing, smart slide detection, master-merge saving, link interception, default-browser handoff, and the `position:fixed` fix.
+- **Based on** [obsidian-html-plugin](https://github.com/nuthrash/obsidian-html-plugin) by **Nuthrash** — thank you for the solid viewer foundation, the multi-mode rendering pipeline and MHTML support. This fork's additions: visual editing, smart slide detection, master-merge saving, link interception, default-browser handoff, and the `position:fixed` fix.
 - Thanks to the Obsidian community for feedback and ideas.
 
 Licensed under the [MIT License](LICENSE), honoring the upstream license.
