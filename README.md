@@ -17,6 +17,12 @@ AI writes great-looking HTML these days — decks, reports, dashboards. But fixi
 
 HTML Studio lets you just **click the text and retype it**. Save, and you're done. That's the whole idea.
 
+<div align="center">
+
+![HTML Studio demo — visual editing in Obsidian](./assets/demo.gif)
+
+</div>
+
 ---
 
 ## What makes it different

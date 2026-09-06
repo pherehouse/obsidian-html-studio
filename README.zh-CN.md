@@ -17,6 +17,12 @@
 
 HTML Studio 让你**直接点上去改**。改完保存，就这么简单。
 
+<div align="center">
+
+![HTML Studio 演示 —— 在 Obsidian 中可视化编辑](./assets/demo.gif)
+
+</div>
+
 ---
 
 ## 它有什么不同
