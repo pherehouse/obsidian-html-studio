@@ -2,121 +2,121 @@
 
 # HTML Studio
 
-**Read, view and visually edit HTML files right inside Obsidian.**
+**在 Obsidian 中直接阅读、查看和可视化编辑 HTML 文件。**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-4C1.svg)](./LICENSE)
 [![Made for Obsidian](https://img.shields.io/badge/Made%20for-Obsidian-7C3AED.svg)](https://obsidian.md)
 [![GitHub release](https://img.shields.io/github/v/release/pherehouse/obsidian-html-studio?color=blue)](../../releases)
 
-[![English](https://img.shields.io/badge/README-English-2b5797?style=flat-square)](./README.md)
-[![简体中文](https://img.shields.io/badge/README-简体中文-c74634?style=flat-square)](./README.zh-CN.md)
+[![English](https://img.shields.io/badge/README-English-2b5797?style=flat-square)](./README.en.md)
+[![简体中文](https://img.shields.io/badge/README-简体中文-c74634?style=flat-square)](./README.md)
 
 </div>
 
-AI writes great-looking HTML these days — decks, reports, dashboards. But fixing one title before a meeting still means digging through tags.
+现在 AI 生成的 HTML 越来越好看了——PPT、报告、仪表盘。但开会前想改个标题，还得回去翻代码。
 
-HTML Studio lets you just **click the text and retype it**. Save, and you're done. That's the whole idea.
+HTML Studio 让你**直接点上去改**。改完保存，就这么简单。
 
 <div align="center">
 
-![HTML Studio demo — visual editing in Obsidian](./assets/demo.gif)
+![HTML Studio 演示 —— 在 Obsidian 中可视化编辑](./assets/demo.gif)
 
 </div>
 
 ---
 
-## What makes it different
+## 它有什么不同
 
-- **Edit any HTML like a document** — click text to type, click an image to replace it. Works on decks *and* long pages, no matter how the file was written.
-- **Saving never breaks your file** — only your edits are merged back; scripts and styles survive untouched.
-- **Safe out of the box** — sandboxed rendering, and links won't jump (or ping trackers) unless you mean it (`⌘/Ctrl + click`).
+- **像改文档一样改网页** —— 点文字直接输入，点图片直接替换。幻灯片和长页面都支持，不管文件怎么写的。
+- **保存不会弄坏文件** —— 只合并你改过的部分，脚本和样式原样保留。
+- **开箱即安全** —— 沙箱渲染，链接不会随手一点就跳转（也不会触发埋点），想打开用 `⌘/Ctrl + 点击`。
 
-## Features
+## 功能特性
 
-### 📖 Read & Browse
+### 📖 阅读与浏览
 
-Open `.html` / `.htm` / `.mhtml` files directly in Obsidian — rendered, not as raw source.
+在 Obsidian 中直接打开 `.html` / `.htm` / `.mhtml` 文件 —— 渲染呈现，而非原始源码。
 
-- **Sandboxed rendering** — files are displayed in a secure iframe, with 5 security levels to choose from (Balance / Low Restricted / Unrestricted / High Restricted / Text-only).
-- **Works with any structure** — slide decks (reveal.js, JMC-style paged HTML…) and vertically scrolling long pages (reports, briefs, dashboards) are both detected and rendered appropriately.
-- **Zoom in / out / reset**, custom background color, and **in-page search**.
-- **MHTML support** — open `.mht` / `.mhtml` web archives saved from the browser.
-- **Open in default browser** — one menu action to hand the file over to your system browser for a full-fidelity look.
-- **Bug fix over upstream:** `position: fixed` elements stay pinned correctly (upstream broke them by always applying `transform: scale(1)`).
+- **沙箱渲染** —— 文件在安全 iframe 中显示，提供 5 档安全级别可选（Balance / Low Restricted / Unrestricted / High Restricted / Text-only）。
+- **适配各种结构** —— 幻灯片（reveal.js、JMC 书页式分页 HTML……）与纵向滚动长页（报告、简报、仪表盘）均可自动识别并正确渲染。
+- **缩放（放大/缩小/重置）**、自定义背景色、**页内搜索**。
+- **支持 MHTML** —— 可打开浏览器保存的 `.mht` / `.mhtml` 网页存档。
+- **在默认浏览器中打开** —— 一个菜单动作，把文件交给系统浏览器做全保真预览。
+- **对上游的 Bug 修复：** `position: fixed` 元素正确悬浮（上游无条件写入 `transform: scale(1)` 会破坏 fixed 定位）。
 
-### ✏️ Visual Editing
+### ✏️ 可视化编辑
 
-- **Click-to-edit text** — every text block in the file is editable in place: headings, paragraphs, list items, table cells, and text inside `div`/`span` elements. A text-node walker marks all editable regions automatically, regardless of the page's tag conventions.
-- **Replace images** — click any image and pick a local file; it is embedded as a Data URL, so the saved file stays fully self-contained and works offline.
-- **Slide-aware page navigation while editing** — decks get a floating page bar + `← →` keyboard navigation (7 selector strategies for detection, plus a real-pagination heuristic so scrolling long pages are never mistaken for slides and keep their native scroll).
-- **Edit dynamic TOC navigation** (v2.0.1) — JS-generated floating TOCs (built at runtime from each slide's `data-title`) are editable too: click the nav text, and on save it's written back to the corresponding slide. Runtime-generated UI is never written into your file.
-- **Safe save (master-merge)** — on save, the file is re-read from disk as a master copy and only the edited sections are replaced back. Scripts, styles and everything untouched by the edit survive exactly as they were — even if the preview mode had stripped them.
+- **点击编辑文字** —— 文件中的所有文本块均可就地编辑：标题、段落、列表项、表格单元格，以及 `div` / `span` 内的文字。通过文本节点遍历器自动标记所有可编辑区域，不受页面标签习惯限制。
+- **替换图片** —— 点击任意图片并选择本地文件；图片以 Data URL 内嵌，保存后的文件完全自包含、离线可用。
+- **幻灯片式翻页编辑** —— 幻灯片配备悬浮页码条 + `← →` 键盘翻页（7 种选择器策略自动探测，配合真分页启发式判定，纵向长页不会被误判为幻灯片、保持原生滚动）。
+- **动态目录导航可编辑**（v2.0.1）—— JS 运行时生成的悬浮目录（由各 slide 的 `data-title` 构建）同样可编辑：点击目录文字直接修改，保存时写回对应 slide。运行时生成的 UI 绝不会写进你的文件。
+- **安全保存（母版合并）** —— 保存时重新从磁盘读取原文件作为母版，仅替换编辑过的部分。脚本、样式及其他未编辑内容原样保留——即使预览模式曾剥离它们。
 
-### 🛡 Safe Link Handling
+### 🛡 链接安全处理
 
-- External links don't navigate on a plain click — which also prevents accidental tracking/analytics triggers. Use `⌘/Ctrl + click` to open deliberately, or toggle interception on/off in the page menu.
+- 普通点击外部链接不跳转——同时防止误触跟踪/埋点上报。使用 `⌘/Ctrl + 点击` 刻意打开，或在页面菜单中随时开关拦截。
 
-## Usage
+## 使用方法
 
-1. Open any `.html` / `.htm` file in your vault — it opens in the HTML Studio view instead of raw text.
-2. **Edit**: open the `⋮` menu (top-right) → **Edit this page**. Text becomes editable (blue focus ring); click images to replace them. For decks, page through with `← →` or the floating bar.
-3. **Save**: `⋮` menu → **Save changes**. The original file is rewritten with a master-merge, so runtime scripts stay intact.
-4. **Links**: intercepted by default; `⌘/Ctrl + click` to open manually, or toggle in the `⋮` menu.
-5. **Browser**: `⋮` menu → **Open in default browser**.
+1. 在仓库中打开任意 `.html` / `.htm` 文件 —— 将以 HTML Studio 视图打开，而非原始文本。
+2. **编辑**：打开右上角 `⋮` 菜单 → **编辑此页面**。文字变为可编辑（蓝色聚焦框）；点击图片可替换。幻灯片用 `← →` 或悬浮页码条翻页。
+3. **保存**：`⋮` 菜单 → **保存修改**。原文件以母版合并方式重写，运行时脚本保持原样。
+4. **链接**：默认拦截；`⌘/Ctrl + 点击` 手动打开，或在 `⋮` 菜单中切换。
+5. **浏览器**：`⋮` 菜单 → **在默认浏览器中打开**。
 
-> Tip: for pages with rich interactivity (scripts you care about), use the *Unrestricted* mode before editing & saving.
+> 提示：对于含丰富交互（你关心的脚本）的页面，编辑和保存前请切换到 *Unrestricted* 模式。
 
-## Install
+## 安装
 
-### Community plugin store (easiest)
+### 社区插件市场（最简单）
 
-Settings → Community plugins → Browse, search **HTML Studio**, install and enable.
+`设置 → 第三方插件 → 社区插件市场`，搜索 **HTML Studio**，点击安装并启用。
 
 <div align="center">
 
-![HTML Studio in the Obsidian community plugin store](./assets/community-plugin.png)
+![Obsidian 社区插件市场中的 HTML Studio](./assets/community-plugin.png)
 
 </div>
 
-### Install with AI
+### AI 安装
 
-Ask your AI assistant (Claude Code, Cursor, Copilot, Trae, etc.) to install it for you — just paste this:
+把下面这段话直接发给你的 AI 助手（Claude Code、Cursor、Copilot、Trae 等），让它替你装好：
 
 ```text
-Install the Obsidian plugin "HTML Studio" for me:
-1. Download the zip from https://github.com/pherehouse/obsidian-html-studio/releases/latest
-2. Unzip it, put the html-studio folder into <my-vault>/.obsidian/plugins/
-3. Tell me how to enable it in Obsidian settings.
+帮我安装 Obsidian 插件 "HTML Studio"：
+1. 从 https://github.com/pherehouse/obsidian-html-studio/releases/latest 下载 zip
+2. 解压后把 html-studio 文件夹放到 <我的仓库>/.obsidian/plugins/ 目录下
+3. 告诉我如何在 Obsidian 设置里启用它
 ```
 
-Or with curl (AI-friendly, one file):
+或者用 curl 一条命令（对 AI 最友好，单个文件）：
 
 ```bash
 curl -fsSL https://github.com/pherehouse/obsidian-html-studio/releases/latest/download/html-studio.zip -o /tmp/html-studio.zip
-unzip -o /tmp/html-studio.zip -d <my-vault>/.obsidian/plugins/
+unzip -o /tmp/html-studio.zip -d <我的仓库>/.obsidian/plugins/
 ```
 
-The AI downloads one zip, extracts it into the plugins folder — done in seconds, no manual download needed.
+AI 只需下载一个 zip、解压到插件目录——几秒搞定，无需手动下载。
 
-### From GitHub (manual)
+### 从 GitHub 手动安装
 
-1. Download `html-studio.zip` from the [latest release](../../releases).
-2. Unzip it into `<your-vault>/.obsidian/plugins/` — it creates the `html-studio/` folder for you.
-3. Enable **HTML Studio** in Settings → Community plugins.
+1. 从 [最新 release](../../releases) 下载 `html-studio.zip`。
+2. 解压到 `<你的仓库>/.obsidian/plugins/` —— 自动生成 `html-studio/` 文件夹。
+3. 在 设置 → 第三方插件 中启用 **HTML Studio**。
 
-### BRAT (recommended for updates)
+### BRAT（推荐用于跟踪更新）
 
-Add this repo to [BRAT](https://github.com/TfTHacker/obsidian42-brat) and it will track releases for you.
+将本仓库添加到 [BRAT](https://github.com/TfTHacker/obsidian42-brat)，它会自动跟踪 release 更新。
 
-## Compatibility notes
+## 兼容性说明
 
-- Editing & saving is desktop-only (uses Electron APIs for native dialogs).
-- Files are never modified until you explicitly save. The viewer itself is read-only.
+- 编辑与保存仅限桌面端（使用 Electron 原生对话框 API）。
+- 在你显式保存之前，文件绝不会被修改。查看器本身是只读的。
 
-## Credits & License
+## 致谢与许可
 
-- **This project** is developed and maintained by [pherehouse](https://github.com/pherehouse).
-- **Based on** [obsidian-html-plugin](https://github.com/nuthrash/obsidian-html-plugin) by **Nuthrash** — thank you for the solid viewer foundation, the multi-mode rendering pipeline and MHTML support. This fork's additions: visual editing, smart slide detection, master-merge saving, link interception, default-browser handoff, and the `position:fixed` fix.
-- Thanks to the Obsidian community for feedback and ideas.
+- **本项目**由 [pherehouse](https://github.com/pherehouse) 开发维护。
+- **基于** **Nuthrash** 的 [obsidian-html-plugin](https://github.com/nuthrash/obsidian-html-plugin) —— 感谢其扎实的查看器基础、多模式渲染管线和 MHTML 支持。本 Fork 的新增内容：可视化编辑、智能幻灯片识别、母版合并保存、链接拦截、默认浏览器移交，以及 `position:fixed` 修复。
+- 感谢 Obsidian 社区的反馈与灵感。
 
-Licensed under the [MIT License](LICENSE), honoring the upstream license.
+以 [MIT License](LICENSE) 开源，并遵循上游许可协议。
