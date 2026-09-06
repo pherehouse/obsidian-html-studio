@@ -68,7 +68,17 @@ Open `.html` / `.htm` / `.mhtml` files directly in Obsidian — rendered, not as
 
 ## Install
 
-### Install with AI (fastest)
+### Community plugin store (easiest)
+
+Settings → Community plugins → Browse, search **HTML Studio**, install and enable.
+
+<div align="center">
+
+![HTML Studio in the Obsidian community plugin store](./assets/community-plugin.png)
+
+</div>
+
+### Install with AI
 
 Ask your AI assistant (Claude Code, Cursor, Copilot, Trae, etc.) to install it for you — just paste this:
 

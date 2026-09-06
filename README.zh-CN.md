@@ -68,7 +68,17 @@ HTML Studio 让你**直接点上去改**。改完保存，就这么简单。
 
 ## 安装
 
-### AI 安装（最快）
+### 社区插件市场（最简单）
+
+`设置 → 第三方插件 → 社区插件市场`，搜索 **HTML Studio**，点击安装并启用。
+
+<div align="center">
+
+![Obsidian 社区插件市场中的 HTML Studio](./assets/community-plugin.png)
+
+</div>
+
+### AI 安装
 
 把下面这段话直接发给你的 AI 助手（Claude Code、Cursor、Copilot、Trae 等），让它替你装好：
 
